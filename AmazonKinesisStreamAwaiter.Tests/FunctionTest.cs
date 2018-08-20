@@ -10,7 +10,7 @@ using System;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace BAMCIS.LambdaFunctions.KinesisStreamAwaiter.Tests
+namespace BAMCIS.LambdaFunctions.AmazonKinesisStreamAwaiter.Tests
 {
     public class FunctionTest
     {

@@ -10,8 +10,8 @@
     "region"      : "us-east-1",
     "configuration" : "Release",
     "framework"     : "netcoreapp2.1",
-    "s3-prefix"     : "KinesisStreamAwaiter/",
-    "template"      : "KinesisStreamAwaiter.template",
+    "s3-prefix"     : "AmazonKinesisStreamAwaiter/",
+    "template"      : "AmazonKinesisStreamAwaiter.template",
     "template-parameters" : "\"LogRetentionInDays\"=\"7\"",
-    "stack-name"          : "KinesisStreamAwaiter"
+    "stack-name"          : "AmazonKinesisStreamAwaiter"
 }
