@@ -1,0 +1,164 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Transform"                : "AWS::Serverless-2016-10-31",
+    "Description"              : "Deploys a Lambda function that can be called as a custom resource to await a Kinesis stream becoming active.",
+    
+	"Parameters"               : {
+        "LogRetentionInDays" : {
+            "Type" : "Number",
+            "Description" : "The number of days to retain the CloudWatch Logs for the function. If this is set to 0, it will be infinite retention.",
+            "MinValue"    : 0,
+            "Default"     : 7
+        }
+    },
+
+	 "Conditions"               : {
+        "InfiniteRetention" : {
+            "Fn::Equals" : [
+                {
+                    "Ref" : "LogRetentionInDays"
+                },
+                0
+            ]
+        }
+    },
+
+	
+	"Resources"                : {
+        "LambdaKinesisAwaiterRole" : {
+            "Type" : "AWS::IAM::Role",
+            "Properties" : {
+                "RoleName" : "LambdaKinesisAwaiterRole",
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Principal" : {
+                                "Service" : [
+                                    "lambda.amazonaws.com"
+                                ]
+                            },
+                            "Action"    : [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "LambdaKinesisPolicy"      : {
+            "Type" : "AWS::IAM::Policy",
+            "Properties" : {
+                "PolicyName" : "KinesisDescribeStreamPolicy",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "kinesis:DescribeStream"
+                            ],
+                            "Resource" : [
+                                "*"
+                            ]
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "LambdaKinesisAwaiterRole"
+                    }
+                ]
+            },
+            "Description" : "Allows AWS Lambda to describe Kinesis streams."
+        },
+		"LambdaCWLPolicy"     : {
+            "Type" : "AWS::IAM::Policy",
+            "Properties" : {
+                "PolicyName" : "LambdaCWLPolicy",
+                "PolicyDocument" : {
+                    "Version" : "2012-10-17",
+                    "Statement" : [
+                        {
+                            "Effect" : "Allow",
+                            "Action" : [
+                                "logs:CreateLogStream",
+                                "logs:CreateLogGroup",
+                                "logs:DescribeLogStreams",
+                                "logs:PutLogEvents",
+                                "logs:DescribeLogGroups"
+                            ],
+                            "Resource" : {
+                                "Fn::Join" : [
+                                    "",
+                                    [
+                                        "arn:aws:logs:*:",
+                                        {
+                                            "Ref" : "AWS::AccountId"
+                                        },
+                                        ":*"
+                                    ]
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "Roles"          : [
+                    {
+                        "Ref" : "LambdaKinesisAwaiterRole"
+                    }
+                ]
+            }
+        },
+        "KinesisStreamAwaiter"     : {
+            "Type" : "AWS::Serverless::Function",
+            "Properties" : {
+                "FunctionName" : "KinesisStreamAwaiter",
+                "Description"  : "Used as a custom resource to await a Kinesis stream becoming active.",
+                "Handler"      : "KinesisStreamAwaiter::BAMCIS.LambdaFunctions.KinesisStreamAwaiter.Entrypoint::ExecuteAsync",
+                "Runtime"      : "dotnetcore2.1",
+                "CodeUri"      : "",
+                "MemorySize"   : 128,
+                "Timeout"      : 300,
+                "Role"         : {
+                    "Fn::GetAtt" : [
+                        "LambdaKinesisAwaiterRole",
+                        "Arn"
+                    ]
+                }
+            }
+        },
+
+		"CloudWatchLogGroup"  : {
+            "Type" : "AWS::Logs::LogGroup",
+            "Properties" : {
+                "LogGroupName" : "/aws/lambda/KinesisStreamAwaiter",
+                "RetentionInDays" : {
+                    "Fn::If" : [
+                        "InfiniteRetention",
+                        {
+                            "Ref" : "AWS::NoValue"
+                        },
+                        {
+                            "Ref" : "LogRetentionInDays"
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    
+	
+	"Outputs"                  : {
+        "FunctionArn" : {
+            "Description" : "The ARN of the Lambda function to be used in other CloudFormation templates.",
+            "Value"       : {
+                "Fn::GetAtt" : [
+                    "KinesisStreamAwaiter",
+                    "Arn"
+                ]
+            }
+        }
+    }
+}
